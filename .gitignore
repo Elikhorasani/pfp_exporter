@@ -1,0 +1,21 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Virtual env
+.venv/
+
+# Secrets
+.env
+
+# Downloads
+downloads/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Playwright
+playwright-report/
