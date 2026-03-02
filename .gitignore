@@ -10,8 +10,12 @@ __pycache__/
 # Secrets
 .env
 
-# Downloads
+# Local runs / downloads / logs
+runs/
 downloads/
+*.log
+done.flag
+fail.flag
 
 # OS
 .DS_Store

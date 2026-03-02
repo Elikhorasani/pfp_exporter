@@ -378,8 +378,9 @@ def main() -> None:
     cfg = load_config()
     cfg.download_dir.mkdir(parents=True, exist_ok=True)
     
+    run_root = cfg.download_dir
     run_date = datetime.now().strftime("%Y-%m-%d")
-    run_dir = cfg.download_dir / run_date
+    run_dir = run_root / run_date
     run_dir.mkdir(parents=True, exist_ok=True)
 
     # Use cfg_run_dir for saving
@@ -396,18 +397,18 @@ def main() -> None:
     test_bestellungen_only = env_bool("TEST_BESTELLUNGEN_ONLY", default=False)  # set to 1/true to skip Kunden
     months_to_download = env_int("LAST_MONTHS", default=2, min_value=1, max_value=12)  # default last 2 months
     include_current = env_bool("INCLUDE_CURRENT", default=True)  # you requested include_current=True
-    bestellungen_trigger_wait_s = env_int("BESTELLUNGEN_TRIGGER_WAIT_SECONDS", default=20 * 60, min_value=0, max_value=24 * 60 * 60)
+    bestellungen_trigger_wait_s = env_int("BESTELLUNGEN_TRIGGER_WAIT_SECONDS", default= 1 * 60, min_value=0, max_value=24 * 60 * 60)
     poll_seconds = env_int("EXPORTS_POLL_SECONDS", default=30, min_value=5, max_value=600)
 
     print("Starting browser...")
 
     with sync_playwright() as p:
-        browser = p.chromium.launch(headless=False)
+        browser = p.chromium.launch(headless=True)
         # create context with downloads_path + accept_downloads
         context = browser.new_context(
             accept_downloads=True,
         )
-        page = browser.new_page()
+        page = context.new_page()
 
         # 1) Login
         login(page, cfg)
@@ -417,7 +418,7 @@ def main() -> None:
         if not test_bestellungen_only:
             trigger_kunden_export(page, cfg)
             # wait_and_download_latest_kunden_export(page, cfg, timeout_s=600)
-            wait_and_download_latest_kunden_export(page, cfg, timeout_s=600, run_dir=run_dir, run_date=run_date)
+            wait_and_download_latest_kunden_export(page, cfg, timeout_s=2400, run_dir=run_dir, run_date=run_date)
         else:
             print("TEST_BESTELLUNGEN_ONLY enabled -> skipping Kunden export/download")
 
@@ -434,7 +435,16 @@ def main() -> None:
 
         context.close()
         browser.close() 
-
+        # SUCCESS FLAG: write into RUN ROOT (runs/<run_id>)
+    (run_root / "done.flag").write_text("ok", encoding="utf-8")
+    
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except Exception as e:
+        # FAIL FLAG: write into RUN ROOT (runs/<run_id>)
+        run_root = Path(os.getenv("PFP_DOWNLOAD_DIR", "./downloads"))
+        run_root.mkdir(parents=True, exist_ok=True)
+        (run_root / "fail.flag").write_text(str(e), encoding="utf-8")
+        raise
